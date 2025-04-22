@@ -94,4 +94,54 @@ start_services() {
 check_services_status() {
     echo "查看服务运行状态..."
     echo "RustDesk 状态: $(systemctl is-active rustdesk-server.service)"
-    echo "FRP 状态: $(systemctl is-active frp
+    echo "FRP 状态: $(systemctl is-active frp-server.service)"
+    echo "Hysteria2 状态: $(systemctl is-active hysteria-server.service)"
+    echo "ShellHub 状态: $(systemctl is-active shellhub.service)"
+}
+
+# 主菜单
+menu() {
+    PS3="请选择要执行的操作: "
+    options=("安装 RustDesk Server" "安装 FRP Server" "安装 Hysteria2" "安装 Web 管理面板" "申请 SSL 证书" "启动所有服务" "查看服务状态" "退出")
+    select opt in "${options[@]}"; do
+        case $opt in
+            "安装 RustDesk Server")
+                install_rustdesk
+                break
+                ;;
+            "安装 FRP Server")
+                install_frp
+                break
+                ;;
+            "安装 Hysteria2")
+                install_hysteria
+                break
+                ;;
+            "安装 Web 管理面板")
+                install_shellhub
+                break
+                ;;
+            "申请 SSL 证书")
+                generate_ssl
+                break
+                ;;
+            "启动所有服务")
+                start_services
+                break
+                ;;
+            "查看服务状态")
+                check_services_status
+                break
+                ;;
+            "退出")
+                exit
+                ;;
+            *)
+                echo "无效选项，请重新选择"
+                ;;
+        esac
+    done
+}
+
+# 执行主菜单
+menu
