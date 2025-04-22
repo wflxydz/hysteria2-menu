@@ -5,7 +5,7 @@ sudo apt update
 sudo apt install curl -y
 
 第二步：
-wget https://raw.githubusercontent.com/wflxydz/hysteria2-menu/main/install-all.sh.sh
+wget https://raw.githubusercontent.com/wflxydz/hysteria2-menu/main/install-all.sh
 
 chmod +x install-all.sh
 
