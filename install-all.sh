@@ -1,127 +1,97 @@
 #!/bin/bash
 
-INSTALL_DIR_BASE="/opt"
-ARCH=$(uname -m)
-case "$ARCH" in
-  x86_64) ARCH_TYPE="amd64" ;;
-  aarch64) ARCH_TYPE="arm64" ;;
-  *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
-esac
+# 设置默认端口和配置
+RUSTDESK_PORT=21117
+FRP_PORT=7000
+HYSTERIA_PORT=443
+DOMAIN=""
+SSL_CERT_PATH="/etc/ssl/certs"
+SSL_KEY_PATH="/etc/ssl/private"
 
-function menu() {
-  while true; do
-    clear
-    echo "========= 一键服务管理菜单 ========="
-    echo "1. 安装 RustDesk Server（hbbs + hbbr）"
-    echo "2. 管理 RustDesk Server"
-    echo "3. 安装并管理 FRP"
-    echo "4. 安装并管理 Hysteria2"
-    echo "5. 安装并管理 ShellHub"
-    echo "6. 多端口助手"
-    echo "7. 退出"
-    read -p "请选择: " CHOICE
-    case $CHOICE in
-      1) install_rustdesk ;;
-      2) manage_rustdesk ;;
-      3) manage_frp ;;
-      4) manage_hysteria ;;
-      5) manage_shellhub ;;
-      6) multi_port_helper ;;
-      7) exit 0 ;;
-      *) echo "❌ 无效输入" ; read -p "按回车继续..." ;;
-    esac
-  done
+# 系统更新和依赖安装
+echo "正在更新系统并安装依赖..."
+apt update && apt upgrade -y
+apt install -y curl unzip tar wget git sudo net-tools ufw
+
+# 检查并安装 Docker
+if ! command -v docker &>/dev/null; then
+  echo "Docker 未安装，正在安装 Docker..."
+  curl -fsSL https://get.docker.com | bash
+  sudo usermod -aG docker $USER
+fi
+
+# 安装 RustDesk
+install_rustdesk() {
+    echo "正在安装 RustDesk..."
+    read -p "请输入 RustDesk 公网端口（默认21117）: " RUSTDESK_PORT
+    if [ -z "$RUSTDESK_PORT" ]; then
+        RUSTDESK_PORT=21117
+    fi
+    wget https://github.com/rustdesk/rustdesk-server/releases/download/1.1.14/rustdesk-server-linux-amd64.zip -O /tmp/rustdesk.zip
+    unzip /tmp/rustdesk.zip -d /opt/rustdesk
+    chmod +x /opt/rustdesk/amd64/hbbs /opt/rustdesk/amd64/hbbr
+    echo "RustDesk 已安装，监听端口：$RUSTDESK_PORT"
 }
 
-function install_rustdesk() {
-  local INSTALL_DIR="$INSTALL_DIR_BASE/rustdesk"
-  mkdir -p "$INSTALL_DIR" && cd "$INSTALL_DIR"
-
-  read -p "请输入 hbbs 端口（默认 21117）: " HBBS_PORT
-  read -p "请输入 hbbr 端口（默认 21118）: " HBBR_PORT
-  HBBS_PORT=${HBBS_PORT:-21117}
-  HBBR_PORT=${HBBR_PORT:-21118}
-
-  echo "下载 RustDesk Server..."
-  curl -L -o rustdesk.zip "https://github.com/rustdesk/rustdesk-server/releases/download/1.1.14/rustdesk-server-linux-${ARCH_TYPE}.zip"
-  unzip -o rustdesk.zip
-
-  chmod +x ${ARCH_TYPE}/hbbs ${ARCH_TYPE}/hbbr
-
-  # Systemd
-  cat <<EOF > /etc/systemd/system/rustdesk-hbbs.service
-[Unit]
-Description=RustDesk Rendezvous Server
-After=network.target
-
-[Service]
-ExecStart=$INSTALL_DIR/$ARCH_TYPE/hbbs -p $HBBS_PORT
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  cat <<EOF > /etc/systemd/system/rustdesk-hbbr.service
-[Unit]
-Description=RustDesk Relay Server
-After=network.target
-
-[Service]
-ExecStart=$INSTALL_DIR/$ARCH_TYPE/hbbr -p $HBBR_PORT
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  systemctl daemon-reload
-  systemctl enable --now rustdesk-hbbs rustdesk-hbbr
-  echo "✅ RustDesk 安装完成并已启动"
-  read -p "按回车继续..."
+# 安装 FRP
+install_frp() {
+    echo "正在安装 FRP..."
+    read -p "请输入 FRP 公网端口（默认7000）: " FRP_PORT
+    if [ -z "$FRP_PORT" ]; then
+        FRP_PORT=7000
+    fi
+    wget https://github.com/fatedier/frp/releases/download/v0.62.0/frp_0.62.0_linux_amd64.tar.gz -O /tmp/frp.tar.gz
+    tar -xzvf /tmp/frp.tar.gz -C /opt/frp
+    chmod +x /opt/frp/frps
+    echo "FRP 已安装，监听端口：$FRP_PORT"
 }
 
-function manage_rustdesk() {
-  while true; do
-    echo "========= RustDesk 管理 ========="
-    echo "1. 启动"
-    echo "2. 停止"
-    echo "3. 重启"
-    echo "4. 查看状态"
-    echo "5. 查看日志"
-    echo "6. 返回主菜单"
-    read -p "选择操作: " opt
-    case $opt in
-      1) systemctl start rustdesk-hbbs rustdesk-hbbr ;;
-      2) systemctl stop rustdesk-hbbs rustdesk-hbbr ;;
-      3) systemctl restart rustdesk-hbbs rustdesk-hbbr ;;
-      4) systemctl status rustdesk-hbbs rustdesk-hbbr ; read -p "按回车继续..." ;;
-      5) journalctl -u rustdesk-hbbs -e --no-pager ; read -p "按回车继续..." ;;
-      6) break ;;
-      *) echo "无效选项" ;;
-    esac
-  done
+# 安装 Hysteria2
+install_hysteria() {
+    echo "正在安装 Hysteria2..."
+    bash <(curl -fsSL https://get.hy2.sh/)
+    systemctl enable hysteria-server.service
+    systemctl start hysteria-server.service
+    echo "Hysteria2 已安装，监听端口：$HYSTERIA_PORT"
 }
 
-function manage_frp() {
-  echo "📦 TODO: FRP 安装与管理功能集成中..."
-  read -p "按回车继续..."
+# 安装 Web 管理面板（ShellHub）
+install_shellhub() {
+    echo "正在安装 ShellHub Web 管理面板..."
+    curl -fsSL https://github.com/shellhub-io/shellhub/releases/download/v0.7.0/shellhub-linux-amd64.tar.gz -o /tmp/shellhub.tar.gz
+    tar -xzvf /tmp/shellhub.tar.gz -C /opt/shellhub
+    /opt/shellhub/shellhub &> /dev/null &
+    echo "ShellHub 已安装，访问管理面板：http://$(curl -s ifconfig.me):8080"
 }
 
-function manage_hysteria() {
-  echo "📦 TODO: Hysteria2 安装与管理功能集成中..."
-  read -p "按回车继续..."
+# SSL 证书申请
+generate_ssl() {
+    echo "正在申请 SSL 证书..."
+    read -p "请输入你的域名（例如 example.com）: " DOMAIN
+    if [ -z "$DOMAIN" ]; then
+        echo "域名不能为空，退出 SSL 证书申请"
+        exit 1
+    fi
+    apt install -y socat
+    curl https://get.acme.sh | sh
+    ~/.acme.sh/acme.sh --issue -d $DOMAIN --webroot /var/www/html
+    ~/.acme.sh/acme.sh --installcert -d $DOMAIN \
+        --key-file $SSL_KEY_PATH/$DOMAIN.key \
+        --fullchain-file $SSL_CERT_PATH/$DOMAIN.crt
+    echo "SSL 证书已申请并安装，证书路径：$SSL_KEY_PATH/$DOMAIN.key"
 }
 
-function manage_shellhub() {
-  echo "📦 TODO: ShellHub 安装与管理功能集成中..."
-  read -p "按回车继续..."
+# 启动 Web 管理面板和服务
+start_services() {
+    echo "启动所有服务..."
+    systemctl start hysteria-server.service
+    systemctl start rustdesk-server.service
+    systemctl start frp-server.service
+    echo "所有服务已启动"
 }
 
-function multi_port_helper() {
-  echo "📦 TODO: 多端口配置助手集成中..."
-  read -p "按回车继续..."
-}
-
-# 启动菜单
-menu
+# 查看所有服务状态
+check_services_status() {
+    echo "查看服务运行状态..."
+    echo "RustDesk 状态: $(systemctl is-active rustdesk-server.service)"
+    echo "FRP 状态: $(systemctl is-active frp
