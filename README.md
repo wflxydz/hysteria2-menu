@@ -6,8 +6,11 @@ sudo apt install curl -y
 
 第二步：
 wget https://raw.githubusercontent.com/wflxydz/hysteria2-menu/main/install-all.sh.sh
-chmod +x install-all.sh.sh
-./install-all.sh.sh
+
+chmod +x install-all.sh
+
+./install-all.sh
+
 一键安装 RustDesk Server+FRP+Hysteria2
 
 
