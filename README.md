@@ -1,23 +1,14 @@
+提前设置域名并绑定ip
+
 第一步：
 sudo apt update
 sudo apt install curl -y
 
 第二步：
-wget https://raw.githubusercontent.com/wflxydz/hysteria2-menu/main/hysteria2-menu.sh
-chmod +x hysteria2-menu.sh
-./hysteria2-menu.sh
-一键安装 Hysteria2
-
-自动生成配置文件
-
-自签证书 / ACME 自动签发证书可选
-
-启动、停止、重启、查看状态、查看日志等操作
-
-设置开机自启
-
-端口443
-提前设置域名并绑定ip
+wget https://raw.githubusercontent.com/wflxydz/hysteria2-menu/main/install-all.sh.sh
+chmod +x install-all.sh.sh
+./install-all.sh.sh
+一键安装 RustDesk Server+FRP+Hysteria2
 
 
 以下是一键集成安装脚本的最终版本，包含以下功能：
@@ -38,3 +29,11 @@ chmod +x hysteria2-menu.sh
 远程 SSH 可视化管理（ShellHub）
 
 退出菜单
+
+将上述脚本保存为 install-all.sh 文件。
+
+赋予执行权限：chmod +x install-all.sh
+
+执行脚本：./install-all.sh
+
+选择菜单并进行相关操作，支持安装多个服务、管理多个端口配置。
